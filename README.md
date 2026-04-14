@@ -1,4 +1,4 @@
-# azure-devops-ai-pr-review
+# Azure DevOps AI Code Review
 
 Automated AI code review for Azure DevOps pull requests. Uses Azure AI Foundry to detect security vulnerabilities, logic bugs, performance issues, and requirements drift, then posts a structured comment directly on the PR.
 
