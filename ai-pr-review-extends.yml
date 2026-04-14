@@ -27,18 +27,6 @@ parameters:
     # Required. Full Azure AI Foundry Responses API endpoint URL, e.g.:
     # https://<resource>.cognitiveservices.azure.com/openai/responses?api-version=2025-01-01-preview
 
-  - name: templateRepoAlias
-    type: string
-    default: "devops-templates"
-    # Alias of the repository declared in resources.repositories that contains
-    # this template and the review scripts. Must match the repository: key below.
-
-  - name: templateRepoName
-    type: string
-    default: "azure-devops-ai-pr-review"
-    # ADO repository name (not alias) of the templates repo. Used to build the
-    # on-disk path to the scripts after checkout, e.g. $(System.DefaultWorkingDirectory)/<templateRepoName>/scripts/
-
   - name: severityThreshold
     type: number
     default: 7
@@ -77,8 +65,7 @@ jobs:
         displayName: "Checkout (full history)"
 
       # 1b. Checkout templates repo to access the review script
-      # Alias 'devops-templates' is declared in resources.repositories above.
-      - checkout: ${{ parameters.templateRepoAlias }}
+      - checkout: devops-templates
         displayName: "Checkout templates repo"
 
       # 2. Python runtime
@@ -107,7 +94,18 @@ jobs:
         env:
           ADO_TARGET_BRANCH: $(System.PullRequest.TargetBranch)
 
-      # 4b. Fetch Azure AD token via Service Principal
+      # 4b. Locate main.py — avoids hardcoding the repo folder name
+      - script: |
+          SCRIPT=$(find "$(Pipeline.Workspace)" -name "main.py" -path "*/scripts/main.py" | head -1)
+          if [ -z "$SCRIPT" ]; then
+            echo "##[error]Could not find scripts/main.py under $(Pipeline.Workspace)"
+            exit 1
+          fi
+          echo "Found script: $SCRIPT"
+          echo "##vso[task.setvariable variable=REVIEW_SCRIPT_PATH]$SCRIPT"
+        displayName: "Locate review script"
+
+      # 4c. Fetch Azure AD token via Service Principal
       - task: AzureCLI@2
         displayName: "Fetch Azure AD token for AI Foundry"
         inputs:
@@ -136,5 +134,5 @@ jobs:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         inputs:
           scriptSource: filePath
-          scriptPath: $(System.DefaultWorkingDirectory)/${{ parameters.templateRepoName }}/scripts/main.py
+          scriptPath: $(REVIEW_SCRIPT_PATH)
           workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
