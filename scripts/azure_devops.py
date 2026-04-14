@@ -194,7 +194,7 @@ def build_comment(issues: list[dict[str, Any]]) -> str:
 
     for issue in issues:
         sev: int = issue.get("severity", 0)
-        icon = _SEVERITY_ICON.get(sev, "🟡")
+        icon = _SEVERITY_ICON.get(sev, "⚪")
         file_ref = f"`{issue.get('file', 'unknown')}`"
         if issue.get("line"):
             file_ref += f" line {issue['line']}"
