@@ -94,18 +94,7 @@ jobs:
         env:
           ADO_TARGET_BRANCH: $(System.PullRequest.TargetBranch)
 
-      # 4b. Locate main.py — avoids hardcoding the repo folder name
-      - script: |
-          SCRIPT=$(find "$PIPELINE_WORKSPACE" -name "main.py" -path "*/scripts/main.py" | head -1)
-          if [ -z "$SCRIPT" ]; then
-            echo "##[error]Could not find scripts/main.py under $PIPELINE_WORKSPACE"
-            exit 1
-          fi
-          echo "Found script: $SCRIPT"
-          echo "##vso[task.setvariable variable=REVIEW_SCRIPT_PATH]$SCRIPT"
-        displayName: "Locate review script"
-
-      # 4c. Fetch Azure AD token via Service Principal
+      # 4b. Fetch Azure AD token via Service Principal
       - task: AzureCLI@2
         displayName: "Fetch Azure AD token for AI Foundry"
         inputs:
@@ -134,5 +123,5 @@ jobs:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         inputs:
           scriptSource: filePath
-          scriptPath: $(REVIEW_SCRIPT_PATH)
+          scriptPath: $(Pipeline.Workspace)/devops-templates/scripts/main.py
           workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
