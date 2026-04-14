@@ -30,7 +30,7 @@ Choose one option:
 1. In ADO, go to **Repos → Import repository**
 2. Set source URL to `https://github.com/antoinedery/azure-devops-ai-pr-review`
 3. Give it a name (e.g. `ai-pr-review-templates`) and import
-4. In your pipeline file, reference it as an ADO repo:
+4. In your pipeline file, reference it as an ADO repo (see step 5):
 
 ```yaml
 resources:
@@ -44,7 +44,7 @@ resources:
 
 1. In ADO, go to **Project Settings → Service connections → New service connection**
 2. Choose **GitHub**, authenticate, and give it a name (e.g. `github-antoinedery`)
-3. In your pipeline file, reference it as a GitHub repo:
+3. In your pipeline file, reference it as a GitHub repo (see step 5):
 
 ```yaml
 resources:
@@ -126,7 +126,6 @@ resources:
     - repository: templates
       type: git # or: github
       name: "<your-project>/ai-pr-review-templates" # or: "antoinedery/azure-devops-ai-pr-review"
-      ref: "refs/heads/main"
       # endpoint: "github-antoinedery"                # only needed for type: github
 
 pr:
@@ -172,6 +171,8 @@ This makes the AI review run on every PR and optionally block merges.
 6. Save
 
 > The pipeline already sets `continueOnError: true` on the AI step, so a model timeout or API error will not fail the pipeline. Setting the policy to **Optional** adds a second layer of safety.
+
+> **Cost note:** The diff is passed directly to the model. Very large PRs (hundreds of files or thousands of lines changed) will consume significantly more tokens and increase cost proportionally. The diff is capped at 60,000 characters by default — consider keeping PRs small and focused, or lowering `maxIssues` to reduce output tokens on large changes.
 
 ---
 
