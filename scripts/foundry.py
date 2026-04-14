@@ -70,10 +70,11 @@ def call_ai(diff: str, work_items: list[dict[str, Any]], previous_review: str = 
     else:
         previous_review_section = ""
 
-    prompt = REVIEW_PROMPT.format(
-        diff=diff,
-        work_items_section=work_items_section,
-        previous_review_section=previous_review_section,
+    prompt = (
+        REVIEW_PROMPT
+        .replace("{diff}", diff)
+        .replace("{work_items_section}", work_items_section)
+        .replace("{previous_review_section}", previous_review_section)
     )
 
     if not AZURE_AD_TOKEN:
