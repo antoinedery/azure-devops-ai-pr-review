@@ -78,15 +78,13 @@ jobs:
 
       # DEBUG — remove once path is confirmed
       - script: |
-          echo "=== Pipeline.Workspace contents ==="
+          echo "=== Pipeline.Workspace ==="
           ls -la "$PIPELINE_WORKSPACE"
-          echo "=== templates folder ==="
-          ls -la "$PIPELINE_WORKSPACE/$TEMPLATE_ALIAS" || echo "(not found)"
-          echo "=== scripts folder ==="
-          ls -la "$PIPELINE_WORKSPACE/$TEMPLATE_ALIAS/scripts" || echo "(not found)"
+          echo "=== s folder ==="
+          ls -la "$PIPELINE_WORKSPACE/s"
+          echo "=== find main.py ==="
+          find "$PIPELINE_WORKSPACE" -name "main.py" 2>/dev/null
         displayName: "DEBUG: list checkout contents"
-        env:
-          TEMPLATE_ALIAS: ${{ parameters.templateRepoAlias }}
 
       # 2. Python runtime
       - task: UsePythonVersion@0
