@@ -1,12 +1,21 @@
-# Reusable template - AI Pull Request Code Review (Azure AI Foundry)
+# AI Pull Request Code Review — Azure AI Foundry
 #
-# Call from your pipeline file:
+# Declare the GitHub repo in your calling pipeline's resources block, then extend:
+#
+#   resources:
+#     repositories:
+#       - repository: templates
+#         type: github
+#         name: "your-org/azure-devops-ai-pr-review"
+#         ref: "refs/heads/main"
+#         endpoint: "your-github-service-connection"
 #
 #   extends:
 #     template: ai-pr-review-extends.yml@templates
 #     parameters:
 #       serviceConnection: "CloudConnection"    # required
 #       foundryUrl: $(FOUNDRY_URL)              # required — store as a pipeline variable
+#       templateRepoAlias: "templates"          # must match the repository: alias above
 #       severityThreshold: 7                    # optional, default 7
 #       maxIssues: 5                            # optional, default 5
 
@@ -27,6 +36,12 @@ parameters:
     # Required. Full Azure AI Foundry Responses API endpoint URL, e.g.:
     # https://<resource>.cognitiveservices.azure.com/openai/responses?api-version=2025-01-01-preview
 
+  - name: templateRepoAlias
+    type: string
+    default: "templates"
+    # Alias used in the calling pipeline's resources.repositories block for this repo.
+    # The checkout folder and script path are derived from this alias.
+
   - name: severityThreshold
     type: number
     default: 7
@@ -44,13 +59,6 @@ parameters:
     default: "3.11"
     # Python version passed to the UsePythonVersion@0 task.
 
-resources:
-  repositories:
-    - repository: devops-templates
-      type: git
-      name: "Devops/Devops"
-      ref: "refs/heads/feature/gh-cli"
-
 jobs:
   - job: AICodeReview
     displayName: "AI Code Review"
@@ -64,8 +72,8 @@ jobs:
         persistCredentials: true
         displayName: "Checkout (full history)"
 
-      # 1b. Checkout templates repo to access the review script
-      - checkout: devops-templates
+      # 1b. Checkout the templates repo (declared by the caller) to access the review scripts
+      - checkout: ${{ parameters.templateRepoAlias }}
         displayName: "Checkout templates repo"
 
       # 2. Python runtime
@@ -123,5 +131,5 @@ jobs:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         inputs:
           scriptSource: filePath
-          scriptPath: $(Pipeline.Workspace)/devops-templates/scripts/main.py
+          scriptPath: $(Pipeline.Workspace)/${{ parameters.templateRepoAlias }}/scripts/main.py
           workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
