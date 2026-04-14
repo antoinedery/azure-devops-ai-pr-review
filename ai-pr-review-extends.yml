@@ -35,7 +35,7 @@ parameters:
 
   - name: templateRepoName
     type: string
-    default: "Devops"
+    default: "azure-devops-ai-pr-review"
     # ADO repository name (not alias) of the templates repo. Used to build the
     # on-disk path to the scripts after checkout, e.g. $(System.DefaultWorkingDirectory)/<templateRepoName>/scripts/
 
