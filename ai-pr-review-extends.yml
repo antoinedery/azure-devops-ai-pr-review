@@ -76,15 +76,17 @@ jobs:
       - checkout: ${{ parameters.templateRepoAlias }}
         displayName: "Checkout templates repo"
 
-      # DEBUG — remove once path is confirmed
+      # 1c. Locate main.py — ADO places multi-checkout repos under $(Pipeline.Workspace)/s/<repoName>
+      #     which differs from the alias, so we resolve it with find.
       - script: |
-          echo "=== Pipeline.Workspace ==="
-          ls -la "$PIPELINE_WORKSPACE"
-          echo "=== s folder ==="
-          ls -la "$PIPELINE_WORKSPACE/s"
-          echo "=== find main.py ==="
-          find "$PIPELINE_WORKSPACE" -name "main.py" 2>/dev/null
-        displayName: "DEBUG: list checkout contents"
+          SCRIPT=$(find "$PIPELINE_WORKSPACE/s" -name "main.py" -path "*/scripts/main.py" | head -1)
+          if [ -z "$SCRIPT" ]; then
+            echo "##[error]Could not find scripts/main.py under $PIPELINE_WORKSPACE/s"
+            exit 1
+          fi
+          echo "Found: $SCRIPT"
+          echo "##vso[task.setvariable variable=REVIEW_SCRIPT_PATH]$SCRIPT"
+        displayName: "Locate review script"
 
       # 2. Python runtime
       - task: UsePythonVersion@0
@@ -141,5 +143,5 @@ jobs:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         inputs:
           scriptSource: filePath
-          scriptPath: $(Pipeline.Workspace)/${{ parameters.templateRepoAlias }}/scripts/main.py
+          scriptPath: $(REVIEW_SCRIPT_PATH)
           workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
