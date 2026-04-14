@@ -22,9 +22,13 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
-from scripts.azure_devops import (
+# Ensure the scripts folder is on the path regardless of working directory
+sys.path.insert(0, str(Path(__file__).parent))
+
+from azure_devops import (  # noqa: E402
     SEVERITY_THRESHOLD,
     MAX_ISSUES,
     delete_previous_review_comments,
@@ -33,7 +37,7 @@ from scripts.azure_devops import (
     post_pr_comment,
     print_issues,
 )
-from foundry import FOUNDRY_URL, call_ai
+from foundry import FOUNDRY_URL, call_ai  # noqa: E402
 
 
 # ── Git helpers ────────────────────────────────────────────────────────────────

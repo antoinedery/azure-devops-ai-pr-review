@@ -76,6 +76,18 @@ jobs:
       - checkout: ${{ parameters.templateRepoAlias }}
         displayName: "Checkout templates repo"
 
+      # DEBUG — remove once path is confirmed
+      - script: |
+          echo "=== Pipeline.Workspace contents ==="
+          ls -la "$PIPELINE_WORKSPACE"
+          echo "=== templates folder ==="
+          ls -la "$PIPELINE_WORKSPACE/$TEMPLATE_ALIAS" || echo "(not found)"
+          echo "=== scripts folder ==="
+          ls -la "$PIPELINE_WORKSPACE/$TEMPLATE_ALIAS/scripts" || echo "(not found)"
+        displayName: "DEBUG: list checkout contents"
+        env:
+          TEMPLATE_ALIAS: ${{ parameters.templateRepoAlias }}
+
       # 2. Python runtime
       - task: UsePythonVersion@0
         inputs:
