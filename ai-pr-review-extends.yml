@@ -1,0 +1,140 @@
+# Reusable template - AI Pull Request Code Review (Azure AI Foundry)
+#
+# Call from your pipeline file:
+#
+#   extends:
+#     template: ai-pr-review-extends.yml@templates
+#     parameters:
+#       serviceConnection: "CloudConnection"    # required
+#       foundryUrl: $(FOUNDRY_URL)              # required — store as a pipeline variable
+#       severityThreshold: 7                    # optional, default 7
+#       maxIssues: 5                            # optional, default 5
+
+parameters:
+  - name: serviceConnection
+    type: string
+    # Required. ADO service connection name authorised to access Azure AI Foundry.
+    # An Azure AD token is fetched at runtime and used to authenticate API calls.
+
+  - name: azureDeployment
+    type: string
+    default: "gpt-5.1-codex-mini"
+    # The model deployment name as configured in Azure AI Foundry.
+    # Passed as the "model" field in the Responses API request body.
+
+  - name: foundryUrl
+    type: string
+    # Required. Full Azure AI Foundry Responses API endpoint URL, e.g.:
+    # https://<resource>.cognitiveservices.azure.com/openai/responses?api-version=2025-01-01-preview
+
+  - name: templateRepoAlias
+    type: string
+    default: "devops-templates"
+    # Alias of the repository declared in resources.repositories that contains
+    # this template and the review scripts. Must match the repository: key below.
+
+  - name: templateRepoName
+    type: string
+    default: "Devops"
+    # ADO repository name (not alias) of the templates repo. Used to build the
+    # on-disk path to the scripts after checkout, e.g. $(System.DefaultWorkingDirectory)/<templateRepoName>/scripts/
+
+  - name: severityThreshold
+    type: number
+    default: 7
+    # Minimum severity score (1–10) for an issue to be included in the PR comment.
+    # Issues below this threshold are still detected but silently dropped.
+
+  - name: maxIssues
+    type: number
+    default: 5
+    # Maximum number of issues to post on the PR, ranked by severity descending.
+    # Caps noise on large PRs; the full list is still printed in the pipeline log.
+
+  - name: pythonVersion
+    type: string
+    default: "3.11"
+    # Python version passed to the UsePythonVersion@0 task.
+
+resources:
+  repositories:
+    - repository: devops-templates
+      type: git
+      name: "Devops/Devops"
+      ref: "refs/heads/feature/gh-cli"
+
+jobs:
+  - job: AICodeReview
+    displayName: "AI Code Review"
+    pool:
+      vmImage: "ubuntu-latest"
+
+    steps:
+      # 1. Full checkout so git diff can reach the merge base
+      - checkout: self
+        fetchDepth: 0
+        persistCredentials: true
+        displayName: "Checkout (full history)"
+
+      # 1b. Checkout templates repo to access the review script
+      # Alias 'devops-templates' is declared in resources.repositories above.
+      - checkout: ${{ parameters.templateRepoAlias }}
+        displayName: "Checkout templates repo"
+
+      # 2. Python runtime
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "${{ parameters.pythonVersion }}"
+        displayName: "Set up Python ${{ parameters.pythonVersion }}"
+
+      # 3. Install runtime dependency
+      - script: pip install --quiet requests
+        displayName: "Install Python dependencies"
+
+      # 4. Fetch target branch for the diff
+      # Pass the ADO macro via env: so bash never sees unexpanded $(...) syntax.
+      - script: |
+          TARGET=$(echo "$ADO_TARGET_BRANCH" | sed 's|refs/heads/||')
+          if [ -z "$TARGET" ]; then
+            echo "[WARNING] ADO_TARGET_BRANCH is empty, skipping explicit fetch."
+            exit 0
+          fi
+          echo "Fetching origin/$TARGET ..."
+          git fetch --no-tags origin "$TARGET":"refs/remotes/origin/$TARGET" 2>/dev/null || \
+            git fetch --no-tags origin "$TARGET" 2>/dev/null || true
+        workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
+        displayName: "Fetch target branch for diff"
+        env:
+          ADO_TARGET_BRANCH: $(System.PullRequest.TargetBranch)
+
+      # 4b. Fetch Azure AD token via Service Principal
+      - task: AzureCLI@2
+        displayName: "Fetch Azure AD token for AI Foundry"
+        inputs:
+          azureSubscription: ${{ parameters.serviceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            TOKEN=$(az account get-access-token \
+              --resource https://cognitiveservices.azure.com \
+              --query accessToken -o tsv)
+            echo "##vso[task.setvariable variable=AZURE_AD_TOKEN;isSecret=true]$TOKEN"
+
+      #  continueOnError: true — an API failure must not block PR merges.
+      - task: PythonScript@0
+        displayName: "AI Code Review (severity ≥ ${{ parameters.severityThreshold }}/10)"
+        continueOnError: true
+        env:
+          SEVERITY_THRESHOLD: ${{ parameters.severityThreshold }}
+          MAX_ISSUES: ${{ parameters.maxIssues }}
+          AZURE_DEPLOYMENT: ${{ parameters.azureDeployment }}
+          AZURE_AD_TOKEN: $(AZURE_AD_TOKEN)
+          FOUNDRY_URL: ${{ parameters.foundryUrl }}
+          # System.AccessToken is NOT auto-injected — must be explicit.
+          # All other predefined variables are auto-injected by ADO, so we
+          # do NOT re-map them here to avoid passing unexpanded literals.
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+        inputs:
+          scriptSource: filePath
+          scriptPath: $(System.DefaultWorkingDirectory)/${{ parameters.templateRepoName }}/scripts/main.py
+          workingDirectory: $(System.DefaultWorkingDirectory)/$(Build.Repository.Name)
