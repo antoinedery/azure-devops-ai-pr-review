@@ -38,7 +38,6 @@ resources:
     - repository: templates
       type: git
       name: "<your-project>/ai-pr-review-templates"
-      ref: "refs/heads/main"
 ```
 
 **Option B - Reference GitHub directly (stays in sync with updates)**
