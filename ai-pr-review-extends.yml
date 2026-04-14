@@ -96,9 +96,9 @@ jobs:
 
       # 4b. Locate main.py — avoids hardcoding the repo folder name
       - script: |
-          SCRIPT=$(find "$(Pipeline.Workspace)" -name "main.py" -path "*/scripts/main.py" | head -1)
+          SCRIPT=$(find "$PIPELINE_WORKSPACE" -name "main.py" -path "*/scripts/main.py" | head -1)
           if [ -z "$SCRIPT" ]; then
-            echo "##[error]Could not find scripts/main.py under $(Pipeline.Workspace)"
+            echo "##[error]Could not find scripts/main.py under $PIPELINE_WORKSPACE"
             exit 1
           fi
           echo "Found script: $SCRIPT"
